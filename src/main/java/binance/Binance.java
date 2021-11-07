@@ -1,24 +1,29 @@
 package binance;
 
 
+import binance.utils.Encryptor;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.Date;
 
-public class Binance {
+public class Binance implements BinanceAPI {
 
-    ObjectMapper mapper = new ObjectMapper();
-    String apiKey;
-    Encryptor encryptor = null;
-    final static String baseUrl = "https://api.binance.com/";
-    final static String timeUrl = baseUrl + "api/v1/time";
-    final static String depth = baseUrl + "api/v1/depth";
-    final static String tickerPrice  = baseUrl + "api/v3/ticker/price";
-    final static String tickerBook = baseUrl + "api/v3/ticker/bookTicker";
-    final static String accountInfo = baseUrl + "/api/v3/account";
-//    final static String exchangeInfo = baseUrl + "api/v1/exchangeInfo";
+    private ObjectMapper mapper = new ObjectMapper();
+    private Account acc = new Account();
+    private String apiKey;
+    private Encryptor encryptor = null;
+    HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(20))
+                .build();
 
     public void setAPIKey(String apiKey) {
         this.apiKey = apiKey;
@@ -65,7 +70,9 @@ public class Binance {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return orderBook;
+        finally {
+            return orderBook;
+        }
     }
 
     public double getLastPrice(String symbol) {
@@ -85,7 +92,7 @@ public class Binance {
         return price;
     }
 
-    double[] getTickerBook(String symbol) {
+    public double[] getTickerBook(String symbol) {
         String resUrl = tickerBook + "?symbol=" + symbol;
         try {
             URL url = new URL(resUrl);
@@ -107,13 +114,48 @@ public class Binance {
     }
 
     public double getBestAsk(String symbol){
-        return getTickerBook(symbol)[1];
+        return getTickerBook(symbol)[0];
     }
 
-    String getAccountInfo()
-    {
-        return new String();
+    public double getBalance(String symbol) {
+        updateAccount();
+        return acc.getBalance(symbol);
     }
+
+    private boolean updateAccount() {
+        if (apiKey == null || apiKey.isEmpty()) return false;
+        if (encryptor == null) return false;
+        long curTimeStamp = new Date().getTime();
+        if(curTimeStamp < (acc.getUpdateTime() + 10000)) return true;  //
+
+        String resUrl = accountInfo + "?";
+        String  body = "timestamp=" + curTimeStamp; // + "&recvWindow=45000";
+        String sign = encryptor.getSHA256(body);
+        resUrl += body;
+        resUrl += "&signature=" + sign;
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(resUrl))
+                .timeout(Duration.ofSeconds(20))
+                .header("X-MBX-APIKEY", apiKey)
+                .GET()
+                .build();
+
+        HttpResponse<String> response = null;
+        try {
+            response = HttpClient.newBuilder()
+                    .followRedirects(HttpClient.Redirect.ALWAYS)
+                    .build()
+                    .send(request, HttpResponse.BodyHandlers.ofString());
+            acc = mapper.readValue(response.body(), Account.class);
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
 
 }
 //            'trades':           {'url': 'api/v1/trades', 'method': 'GET', 'private': False},

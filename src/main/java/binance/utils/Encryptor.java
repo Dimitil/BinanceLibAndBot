@@ -1,4 +1,4 @@
-package binance;
+package binance.utils;
 
 import org.apache.commons.codec.binary.Hex;
 import javax.crypto.Mac;
@@ -7,9 +7,9 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 
 
-class Encryptor {
+public class Encryptor {
     final static String algorithm = "HmacSHA256";
-    SecretKeySpec secret_key;
+    private SecretKeySpec secret_key;
 
     public Encryptor(String key)
     {
