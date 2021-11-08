@@ -1,14 +1,12 @@
 import binance.*;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 
 public class Main {
-    public static void main(String str[]) {
+    public static void main(String ...str) {
             Binance binance = new Binance();
             binance.setAPIKey("XXX");
             binance.setSecretKey("XXX");
-        System.out.println(binance.getBalance("BTC"));
+            System.out.println(binance.getBalance("BTC"));
 //            binance.updateAccount();
 //        System.out.println(binance.getAccount());
 

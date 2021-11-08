@@ -18,10 +18,10 @@ public class Ask implements Comparable {
     public int compareTo(Object o) {
         Ask a = (Ask) o;
         double res = this.getPrice() - a.getPrice();
-        if(res>0) {
+        if(res > 0) {
             return 1;
         }
-        else if(res<0) {
+        else if(res < 0) {
             return -1;
         }
         return 0;

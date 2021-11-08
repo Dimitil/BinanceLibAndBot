@@ -17,13 +17,10 @@ import java.util.Date;
 
 public class Binance implements BinanceAPI {
 
-    private ObjectMapper mapper = new ObjectMapper();
+    final private ObjectMapper mapper = new ObjectMapper();
     private Account acc = new Account();
     private String apiKey;
     private Encryptor encryptor = null;
-    HttpClient client = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(20))
-                .build();
 
     public void setAPIKey(String apiKey) {
         this.apiKey = apiKey;
@@ -70,9 +67,7 @@ public class Binance implements BinanceAPI {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        finally {
-            return orderBook;
-        }
+        return orderBook;
     }
 
     public double getLastPrice(String symbol) {
@@ -118,8 +113,10 @@ public class Binance implements BinanceAPI {
     }
 
     public double getBalance(String symbol) {
-        updateAccount();
-        return acc.getBalance(symbol);
+        if(updateAccount()) {
+            return acc.getBalance(symbol);
+        }
+        return UNDEF_BALANCE_VALUE;
     }
 
     private boolean updateAccount() {
@@ -140,15 +137,17 @@ public class Binance implements BinanceAPI {
                 .GET()
                 .build();
 
-        HttpResponse<String> response = null;
+
         try {
-            response = HttpClient.newBuilder()
+            HttpResponse<String> response = HttpClient.newBuilder()
                     .followRedirects(HttpClient.Redirect.ALWAYS)
                     .build()
                     .send(request, HttpResponse.BodyHandlers.ofString());
+            if(response.statusCode() != 200) return false;
             acc = mapper.readValue(response.body(), Account.class);
             return true;
         } catch (IOException e) {
+            System.out.println("ioEx from Binance.updateAccount");
             e.printStackTrace();
         } catch (InterruptedException e) {
             e.printStackTrace();

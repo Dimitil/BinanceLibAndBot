@@ -1,4 +1,4 @@
-//this is a just data, dont
+//this is a just data, check updateTime beforeUse
 package binance;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.ArrayList;
 import java.util.List;
 
-@JsonDeserialize(using = JsonDeserializerToAccount.class)
+//@JsonDeserialize(using = JsonDeserializerToAccount.class)
 public class Account {
     private int makerCommission;
     private int takerCommission;
@@ -15,9 +15,9 @@ public class Account {
     private boolean canTrade;
     private boolean canWithdraw;
     private boolean canDeposit;
-    private long updateTime; // time from server
+    private long updateTime;
     private String accountType;
-    private List<Balances> balances = new ArrayList<Balances>();
+    final private List<Balances> balances = new ArrayList<>();
 
     public int getMakerCommission() {
         return makerCommission;
@@ -149,8 +149,6 @@ public class Account {
                     '}';
         }
     }
-
-
 }
 
 

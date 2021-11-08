@@ -1,7 +1,5 @@
 package binance;
 
-
-import com.fasterxml.jackson.core.JacksonException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -21,7 +19,7 @@ public class JsonDeserializerToAccount extends StdDeserializer<Account> {
     }
 
     @Override
-    public Account deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JacksonException {
+    public Account deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
         Account acc = new Account();
         JsonNode node = p.getCodec().readTree(p);
         int intTmp = node.get("makerCommission").asInt();
@@ -44,10 +42,8 @@ public class JsonDeserializerToAccount extends StdDeserializer<Account> {
         acc.setAccountType(str);
 
         JsonNode balNode = node.get("balances");
-        Iterator<JsonNode> iter = balNode.iterator();
-        while(iter.hasNext())
-        {
-            balNode = iter.next();
+        for (Iterator<JsonNode> iterator = balNode.iterator(); iterator.hasNext(); ) {
+            balNode = iterator.next();
             str = balNode.get("asset").asText();
             double fr = balNode.get("free").asDouble();
             double lc = balNode.get("locked").asDouble();

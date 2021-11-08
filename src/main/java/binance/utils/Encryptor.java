@@ -9,7 +9,7 @@ import java.security.NoSuchAlgorithmException;
 
 public class Encryptor {
     final static String algorithm = "HmacSHA256";
-    private SecretKeySpec secret_key;
+    final private SecretKeySpec secret_key;
 
     public Encryptor(String key)
     {

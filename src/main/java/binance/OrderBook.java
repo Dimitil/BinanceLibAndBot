@@ -4,8 +4,8 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 
 public class OrderBook {
-    private SortedSet<Bid> bids = new TreeSet<>();
-    private SortedSet<Ask> asks = new TreeSet<>();
+    final private SortedSet<Bid> bids = new TreeSet<>();
+    final private SortedSet<Ask> asks = new TreeSet<>();
 
     public void addAsk(Ask ask) {
         asks.add(ask);
