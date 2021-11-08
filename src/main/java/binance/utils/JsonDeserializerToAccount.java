@@ -1,14 +1,15 @@
-package binance;
+package binance.utils;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-
 import java.io.IOException;
 import java.util.Iterator;
+import binance.BinanceAccount;
 
-public class JsonDeserializerToAccount extends StdDeserializer<Account> {
+
+public class JsonDeserializerToAccount extends StdDeserializer<BinanceAccount> {
 
     public JsonDeserializerToAccount() {
         this(null);
@@ -19,8 +20,8 @@ public class JsonDeserializerToAccount extends StdDeserializer<Account> {
     }
 
     @Override
-    public Account deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-        Account acc = new Account();
+    public BinanceAccount deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+        BinanceAccount acc = new BinanceAccount();
         JsonNode node = p.getCodec().readTree(p);
         int intTmp = node.get("makerCommission").asInt();
         acc.setMakerCommission(intTmp);

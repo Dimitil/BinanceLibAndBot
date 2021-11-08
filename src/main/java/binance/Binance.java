@@ -18,7 +18,7 @@ import java.util.Date;
 public class Binance implements BinanceAPI {
 
     final private ObjectMapper mapper = new ObjectMapper();
-    private Account acc = new Account();
+    private BinanceAccount acc = new BinanceAccount();
     private String apiKey;
     private Encryptor encryptor = null;
 
@@ -144,7 +144,7 @@ public class Binance implements BinanceAPI {
                     .build()
                     .send(request, HttpResponse.BodyHandlers.ofString());
             if(response.statusCode() != 200) return false;
-            acc = mapper.readValue(response.body(), Account.class);
+            acc = mapper.readValue(response.body(), BinanceAccount.class);
             return true;
         } catch (IOException e) {
             System.out.println("ioEx from Binance.updateAccount");
@@ -153,6 +153,10 @@ public class Binance implements BinanceAPI {
             e.printStackTrace();
         }
         return false;
+    }
+
+    public BinanceAccount getAccount() {  //DELETE THIS
+        return acc;
     }
 
 

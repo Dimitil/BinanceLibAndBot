@@ -1,13 +1,14 @@
 //this is a just data, check updateTime beforeUse
 package binance;
 
+import binance.utils.JsonDeserializerToAccount;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import java.util.ArrayList;
 import java.util.List;
 
-//@JsonDeserialize(using = JsonDeserializerToAccount.class)
-public class Account {
+@JsonDeserialize(using = JsonDeserializerToAccount.class)
+public class BinanceAccount {
     private int makerCommission;
     private int takerCommission;
     private int buyerCommission;

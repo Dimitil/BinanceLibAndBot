@@ -6,7 +6,10 @@ public class Main {
             Binance binance = new Binance();
             binance.setAPIKey("XXX");
             binance.setSecretKey("XXX");
-            System.out.println(binance.getBalance("BTC"));
+            binance.getBalance("BTC");
+            System.out.println(binance.getAccount());
+//            Account acc = new Account();
+//            acc.addBalance("qwe", 12, 32.32);
 //            binance.updateAccount();
 //        System.out.println(binance.getAccount());
 
