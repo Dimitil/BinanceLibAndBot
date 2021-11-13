@@ -18,6 +18,7 @@ public class BinanceAccount {
     private boolean canDeposit;
     private long updateTime;
     private String accountType;
+
     final private List<Balances> balances = new ArrayList<>();
 
     public int getMakerCommission() {

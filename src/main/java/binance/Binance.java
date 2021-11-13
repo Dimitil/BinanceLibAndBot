@@ -1,10 +1,9 @@
 package binance;
 
-
 import binance.utils.Encryptor;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -12,6 +11,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Objects;
 
 import static java.lang.Thread.sleep;
 
@@ -25,6 +26,9 @@ public class Binance implements BinanceAPI {
     private BinanceAccount acc = new BinanceAccount();
     private String apiKey = "";
     private Encryptor encryptor = null;
+
+    HashMap<String, Ticker> tickers = new HashMap<String, Ticker>();
+
 
     public void setAPIKey(String apiKey) {
         this.apiKey = apiKey;
@@ -85,26 +89,35 @@ public class Binance implements BinanceAPI {
         return price;
     }
 
-    public double[] getTickerBook(String symbol) {
+    private void updateTickerBook(String symbol) {
+        if(!tickers.containsKey(symbol)) {
+            tickers.put(symbol, new Ticker());
+        }
+        Ticker t = tickers.get(symbol);
+        long tickerUpdateTime = t.tickerUpdateTime;
+        if(tickerUpdateTime + 5000 > new Date().getTime()) return;
         String resUrl = tickerBook + "?symbol=" + symbol;
         try {
+            System.out.println("i do update");
             String response = sendGet(resUrl);
             JsonNode rootNode = mapper.readValue(response, JsonNode.class);
-            double bidPrice = rootNode.get("bidPrice").asDouble();
-            double askPrice = rootNode.get("askPrice").asDouble();
-            return new double[]{ bidPrice, askPrice};
+            t.bestBid = rootNode.get("bidPrice").asDouble();
+            t.bestAsk = rootNode.get("askPrice").asDouble();
+            t.tickerUpdateTime = new Date().getTime();
+            System.out.println(t.tickerUpdateTime);
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
-        return null;
     }
 
     public double getBestBid(String symbol) {
-        return getTickerBook(symbol)[0];
+        updateTickerBook(symbol);
+        return tickers.get(symbol).bestBid;
     }
 
     public double getBestAsk(String symbol){
-        return getTickerBook(symbol)[0];
+        updateTickerBook(symbol);
+        return tickers.get(symbol).bestAsk;
     }
 
     public double getBalance(String symbol) {
@@ -124,7 +137,6 @@ public class Binance implements BinanceAPI {
         resUrl += body;
         try {
             String response = sendSignedGet(resUrl);
-            System.out.print(response);
             acc = mapper.readValue(response, BinanceAccount.class);
             return true;
         } catch (IOException |
@@ -139,6 +151,40 @@ public class Binance implements BinanceAPI {
         return acc;
     }
 
+    public String postSellOrder(String symbol, double qty, double price) {
+        return sentPostOrder("SELL", symbol, qty, price);
+    }
+
+    public String postBuyOrder(String symbol, double qty, double price) {
+        return sentPostOrder("BUY", symbol, qty, price);
+    }
+
+    private String sentPostOrder(String SELLorBUY, String symbol, double qty, double price) {
+        if (qty <= 0) return "";
+        if( price <= 0) return "";
+        if(!SELLorBUY.equals("SELL") && !SELLorBUY.equals("BUY")) return "";
+        String side = SELLorBUY;
+        String body =  "symbol=" + symbol + "&side=" + side + "&type=LIMIT_MAKER" +
+                "&timestamp=" + new Date().getTime() + "&quantity=" + qty +
+                "&price=" + price + "&newOrderRespType=ACK";
+        String sign = encryptor.getSHA256(body);
+        body += "&signature=" + sign;
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(new URI(orderUrl + "/test")) //DELETE TEST
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .header("X-MBX-APIKEY", apiKey)
+                    .build();
+            HttpResponse <String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            if (!processCodeHandler(response.statusCode())) {
+                return "";
+            }
+            return processOrderResponce(response.body());
+        } catch ( Exception e) {
+            e.printStackTrace();
+        }
+        return "";
+    }
     private String sendGet(String url) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
@@ -147,30 +193,77 @@ public class Binance implements BinanceAPI {
                 .GET()
                 .build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (responceCodeHandler(response.statusCode())) {
-                return response.body();
-            } else {
-                return "";
+            try {
+                if (processCodeHandler(response.statusCode())) {
+                    return response.body();
+                }
+            } catch ( Exception e) {
+                e.printStackTrace();
+                System.out.println(response.body());
             }
+        return "";
     }
+
     private String sendSignedGet(String resUrlWithBody) throws IOException, InterruptedException {
         String sign = encryptor.getSHA256(resUrlWithBody);
         String resUrl = resUrlWithBody + "&signature=" + sign;
-//        System.out.println(resUrl);
         return sendGet(resUrl);
     }
-    private boolean responceCodeHandler(int code) {
+
+    private boolean processCodeHandler(int code)  {
         try {
-            if (code == 429) {
-                sleep(10000);
-                return true;
-            } else if (code == 200) {
-                return true;
+            switch (code){
+                case 429:
+                    sleep(10000); //no need break statement
+                case 200:
+                    return true;
+                case 401:
+                    System.out.println("Api-key format invalid");
+                    return false;
             }
         } catch (InterruptedException e) {
             e.printStackTrace();
+            System.out.println("Problem with sleep()");
+            return true;
         }
+        System.out.println("Unknown response code");
+        System.out.println(code);
+        System.exit(2);
         return false;
+    }
+
+    private String processOrderResponce(String response) {
+        String orderId = "";
+        try {
+            JsonNode node = mapper.readValue(response, JsonNode.class);
+            System.out.println(response);
+            if(node.isEmpty()) return "";
+            orderId = node.get("orderId").asText();
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+        return orderId;
+    }
+
+    private class Ticker {
+        long tickerUpdateTime;
+        double bestAsk;
+        double bestBid;
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Ticker ticker = (Ticker) o;
+            return tickerUpdateTime == ticker.tickerUpdateTime &&
+                    Double.compare(ticker.bestAsk, bestAsk) == 0 &&
+                    Double.compare(ticker.bestBid, bestBid) == 0;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(tickerUpdateTime, bestAsk, bestBid);
+        }
     }
 }
 //            'trades':           {'url': 'api/v1/trades', 'method': 'GET', 'private': False},
