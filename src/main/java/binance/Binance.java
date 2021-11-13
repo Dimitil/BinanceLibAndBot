@@ -6,20 +6,24 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Date;
 
-public class Binance implements BinanceAPI {
+import static java.lang.Thread.sleep;
 
+public class Binance implements BinanceAPI {
+    public final long DELTA_MILLS_SEC = 5000;
+    public final int TIMEOUT_DURATION_SEC = 10;
+    final private HttpClient client = HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_2)
+            .build();
     final private ObjectMapper mapper = new ObjectMapper();
     private BinanceAccount acc = new BinanceAccount();
-    private String apiKey;
+    private String apiKey = "";
     private Encryptor encryptor = null;
 
     public void setAPIKey(String apiKey) {
@@ -33,10 +37,10 @@ public class Binance implements BinanceAPI {
     public long getServerTime() {
         long res = 0;
         try {
-             URL timeUri = new URL(timeUrl);
-             JsonNode rootNode = mapper.readValue(timeUri, JsonNode.class);
+             String response = sendGet(timeUrl);
+             JsonNode rootNode = mapper.readValue(response, JsonNode.class);
              res = rootNode.get("serverTime").asLong();
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
         }
         return res;
@@ -46,8 +50,8 @@ public class Binance implements BinanceAPI {
         String resUri = depth + "?symbol=" + pair + "&" +"limit=" + count;
         OrderBook orderBook = new OrderBook();
         try {
-            URL url = new URL(resUri);
-            JsonNode rootNode = mapper.readTree(url);
+            String response = sendGet(resUri);
+            JsonNode rootNode = mapper.readTree(response);
             JsonNode bidsNode = rootNode.get("bids");
             for (int i = 0; i < count; i++) {
                 JsonNode bidNode = bidsNode.get(i);
@@ -62,9 +66,7 @@ public class Binance implements BinanceAPI {
                 double qty = askNode.get(1).asDouble();
                 orderBook.addAsk(new Ask(price, qty));
             }
-        } catch (MalformedURLException e) {
-            System.out.println("Error with URL in Binance::getOrderBook()"+ e.getMessage());
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
         return orderBook;
@@ -73,15 +75,11 @@ public class Binance implements BinanceAPI {
     public double getLastPrice(String symbol) {
         double price = 0;
         String resUrl = tickerPrice + "?symbol=" + symbol;
-
         try {
-            URL url = new URL(resUrl);
-            JsonNode rootNode = mapper.readValue(url, JsonNode.class);
+            String response = sendGet(resUrl);
+            JsonNode rootNode = mapper.readValue(response, JsonNode.class);
             price = rootNode.get("price").asDouble();
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-            System.out.println("MalformedURL");
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
         return price;
@@ -90,15 +88,12 @@ public class Binance implements BinanceAPI {
     public double[] getTickerBook(String symbol) {
         String resUrl = tickerBook + "?symbol=" + symbol;
         try {
-            URL url = new URL(resUrl);
-            JsonNode rootNode = mapper.readValue(url, JsonNode.class);
+            String response = sendGet(resUrl);
+            JsonNode rootNode = mapper.readValue(response, JsonNode.class);
             double bidPrice = rootNode.get("bidPrice").asDouble();
             double askPrice = rootNode.get("askPrice").asDouble();
             return new double[]{ bidPrice, askPrice};
-        } catch (MalformedURLException e) {
-            System.out.println("MalformedURLException");
-            e.printStackTrace();
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
         return null;
@@ -123,43 +118,60 @@ public class Binance implements BinanceAPI {
         if (apiKey == null || apiKey.isEmpty()) return false;
         if (encryptor == null) return false;
         long curTimeStamp = new Date().getTime();
-        if(curTimeStamp < (acc.getUpdateTime() + 10000)) return true;  //
-
+        if(curTimeStamp < (acc.getUpdateTime() + DELTA_MILLS_SEC)) return true;
         String resUrl = accountInfo + "?";
         String  body = "timestamp=" + curTimeStamp; // + "&recvWindow=45000";
-        String sign = encryptor.getSHA256(body);
         resUrl += body;
-        resUrl += "&signature=" + sign;
+        try {
+            String response = sendSignedGet(resUrl);
+            System.out.print(response);
+            acc = mapper.readValue(response, BinanceAccount.class);
+            return true;
+        } catch (IOException |
+                InterruptedException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public BinanceAccount getAccount() {  //DELETE THIS
+        updateAccount();
+        return acc;
+    }
+
+    private String sendGet(String url) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(resUrl))
-                .timeout(Duration.ofSeconds(20))
+                .uri(URI.create(url))
+                .timeout(Duration.ofSeconds(TIMEOUT_DURATION_SEC))
                 .header("X-MBX-APIKEY", apiKey)
                 .GET()
                 .build();
-
-
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            if (responceCodeHandler(response.statusCode())) {
+                return response.body();
+            } else {
+                return "";
+            }
+    }
+    private String sendSignedGet(String resUrlWithBody) throws IOException, InterruptedException {
+        String sign = encryptor.getSHA256(resUrlWithBody);
+        String resUrl = resUrlWithBody + "&signature=" + sign;
+//        System.out.println(resUrl);
+        return sendGet(resUrl);
+    }
+    private boolean responceCodeHandler(int code) {
         try {
-            HttpResponse<String> response = HttpClient.newBuilder()
-                    .followRedirects(HttpClient.Redirect.ALWAYS)
-                    .build()
-                    .send(request, HttpResponse.BodyHandlers.ofString());
-            if(response.statusCode() != 200) return false;
-            acc = mapper.readValue(response.body(), BinanceAccount.class);
-            return true;
-        } catch (IOException e) {
-            System.out.println("ioEx from Binance.updateAccount");
-            e.printStackTrace();
+            if (code == 429) {
+                sleep(10000);
+                return true;
+            } else if (code == 200) {
+                return true;
+            }
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
         return false;
     }
-
-    public BinanceAccount getAccount() {  //DELETE THIS
-        return acc;
-    }
-
-
 }
 //            'trades':           {'url': 'api/v1/trades', 'method': 'GET', 'private': False},
 //            'historicalTrades': {'url': 'api/v1/historicalTrades', 'method': 'GET', 'private': False},
