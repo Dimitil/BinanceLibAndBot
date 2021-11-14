@@ -20,6 +20,8 @@ public interface BinanceAPI {
     double getBalance(String symbol);
     String postSellOrder(String symbol, double qty, double price); // return OrderID
     String postBuyOrder(String symbol, double qty, double price); //too
+    boolean orderIsOpen(String symbol, String orderId) throws Exception;
+    boolean deleteOpenOrder(String symbol, String orderId) throws Exception;
 
 
 }

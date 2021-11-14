@@ -159,6 +159,54 @@ public class Binance implements BinanceAPI {
         return sentPostOrder("BUY", symbol, qty, price);
     }
 
+    @Override
+    public boolean orderIsOpen(String symbol, String orderId) throws Exception {
+        if(symbol == null ||
+                symbol.isEmpty() ||
+                orderId == null ||
+                orderId.isEmpty()) throw new Exception("Invalid symbol or orderId");
+        String body = "symbol=" + symbol + "&orderId=" + orderId
+                + "&timestamp=" + new Date().getTime();
+        String sign = encryptor.getSHA256(body);
+        body += "&signature=" + sign;
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(new URI(orderUrl + "?" + body))
+                    .GET()
+                    .header("X-MBX-APIKEY", apiKey)
+                    .build();
+            HttpResponse <String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            if (!processCodeHandler(response.statusCode())) {
+                throw new Exception("problems with response");
+            }
+            JsonNode jsonRoot = mapper.readValue(response.body(), JsonNode.class);
+            if(jsonRoot.isEmpty()) throw new Exception("Order not found");
+            return jsonRoot.get("isWorking").asBoolean();
+    }
+
+    @Override
+    public boolean deleteOpenOrder(String symbol, String orderId) throws Exception{
+        if(symbol == null ||
+                symbol.isEmpty() ||
+                orderId == null ||
+                orderId.isEmpty()) throw new Exception("Invalid symbol or orderId");
+        String body = "symbol=" + symbol + "&orderId=" + orderId + "&timestamp="
+                + new Date().getTime();
+        String sign = encryptor.getSHA256(body);
+        body += "&signature=" + sign;
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(new URI(orderUrl + "?" + body))
+                .DELETE()
+                .header("X-MBX-APIKEY", apiKey)
+                .build();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        if(!processCodeHandler(response.statusCode())) {
+            throw new Exception ("bad responce from delete order");
+        }
+        JsonNode jsonRoot = mapper.readValue(response.body(), JsonNode.class);
+        String orderStatus = jsonRoot.get("status").asText();
+        return orderStatus.equals("CANCELED");
+    }
+
     private String sentPostOrder(String SELLorBUY, String symbol, double qty, double price) {
         if (qty <= 0) return "";
         if( price <= 0) return "";
