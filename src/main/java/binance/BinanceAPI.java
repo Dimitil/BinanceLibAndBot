@@ -8,8 +8,6 @@ public interface BinanceAPI {
     String tickerBook = baseUrl + "api/v3/ticker/bookTicker";
     String accountInfo = baseUrl + "api/v3/account";
     String orderUrl = baseUrl + "api/v3/order";
-
-
     double UNDEF_BALANCE_VALUE = -9999.9999;
 
     long getServerTime();
@@ -20,8 +18,8 @@ public interface BinanceAPI {
     double getBalance(String symbol);
     String postSellOrder(String symbol, double qty, double price); // return OrderID
     String postBuyOrder(String symbol, double qty, double price); //too
-    boolean orderIsOpen(String symbol, String orderId) throws Exception;
-    boolean deleteOpenOrder(String symbol, String orderId) throws Exception;
+    boolean orderIsOpen(String symbol, long orderId) throws Exception;
+    boolean deleteOpenOrder(String symbol, long orderId) throws Exception;
 
 
 }

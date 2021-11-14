@@ -132,11 +132,9 @@ public class Binance implements BinanceAPI {
         if (encryptor == null) return false;
         long curTimeStamp = new Date().getTime();
         if(curTimeStamp < (acc.getUpdateTime() + DELTA_MILLS_SEC)) return true;
-        String resUrl = accountInfo + "?";
         String  body = "timestamp=" + curTimeStamp; // + "&recvWindow=45000";
-        resUrl += body;
         try {
-            String response = sendSignedGet(resUrl);
+            String response = sendSignedGet(accountInfo, body);
             acc = mapper.readValue(response, BinanceAccount.class);
             return true;
         } catch (IOException |
@@ -160,35 +158,22 @@ public class Binance implements BinanceAPI {
     }
 
     @Override
-    public boolean orderIsOpen(String symbol, String orderId) throws Exception {
+    public boolean orderIsOpen(String symbol, long orderId) throws Exception {
         if(symbol == null ||
-                symbol.isEmpty() ||
-                orderId == null ||
-                orderId.isEmpty()) throw new Exception("Invalid symbol or orderId");
+                symbol.isEmpty() ) throw new Exception("Invalid symbol or orderId");
         String body = "symbol=" + symbol + "&orderId=" + orderId
                 + "&timestamp=" + new Date().getTime();
-        String sign = encryptor.getSHA256(body);
-        body += "&signature=" + sign;
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(new URI(orderUrl + "?" + body))
-                    .GET()
-                    .header("X-MBX-APIKEY", apiKey)
-                    .build();
-            HttpResponse <String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (!processCodeHandler(response.statusCode())) {
-                throw new Exception("problems with response");
-            }
-            JsonNode jsonRoot = mapper.readValue(response.body(), JsonNode.class);
+        String response = sendSignedGet(orderUrl , body);
+            JsonNode jsonRoot = mapper.readValue(response, JsonNode.class);
             if(jsonRoot.isEmpty()) throw new Exception("Order not found");
-            return jsonRoot.get("isWorking").asBoolean();
+            String status = jsonRoot.get("status").asText();
+            return status.equals("NEW");
     }
 
     @Override
-    public boolean deleteOpenOrder(String symbol, String orderId) throws Exception{
+    public boolean deleteOpenOrder(String symbol, long orderId) throws Exception{
         if(symbol == null ||
-                symbol.isEmpty() ||
-                orderId == null ||
-                orderId.isEmpty()) throw new Exception("Invalid symbol or orderId");
+                symbol.isEmpty() ) throw new Exception("Invalid symbol or orderId");
         String body = "symbol=" + symbol + "&orderId=" + orderId + "&timestamp="
                 + new Date().getTime();
         String sign = encryptor.getSHA256(body);
@@ -200,7 +185,7 @@ public class Binance implements BinanceAPI {
                 .build();
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         if(!processCodeHandler(response.statusCode())) {
-            throw new Exception ("bad responce from delete order");
+            throw new Exception ("bad response from delete order");
         }
         JsonNode jsonRoot = mapper.readValue(response.body(), JsonNode.class);
         String orderStatus = jsonRoot.get("status").asText();
@@ -233,6 +218,7 @@ public class Binance implements BinanceAPI {
         }
         return "";
     }
+
     private String sendGet(String url) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
@@ -240,21 +226,21 @@ public class Binance implements BinanceAPI {
                 .header("X-MBX-APIKEY", apiKey)
                 .GET()
                 .build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            try {
-                if (processCodeHandler(response.statusCode())) {
-                    return response.body();
-                }
-            } catch ( Exception e) {
-                e.printStackTrace();
-                System.out.println(response.body());
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        try {
+            if (processCodeHandler(response.statusCode())) {
+                return response.body();
             }
+        } catch ( Exception e) {
+            e.printStackTrace();
+            System.out.println(response.body());
+        }
         return "";
     }
 
-    private String sendSignedGet(String resUrlWithBody) throws IOException, InterruptedException {
-        String sign = encryptor.getSHA256(resUrlWithBody);
-        String resUrl = resUrlWithBody + "&signature=" + sign;
+    private String sendSignedGet(String endPoint, String body) throws IOException, InterruptedException {
+        String sign = encryptor.getSHA256(body);
+        String resUrl = endPoint + "?" + body + "&signature=" + sign;
         return sendGet(resUrl);
     }
 
@@ -265,6 +251,9 @@ public class Binance implements BinanceAPI {
                     sleep(10000); //no need break statement
                 case 200:
                     return true;
+                case 400:
+                    System.out.println("Signature for this request is not valid or order does not exist");
+                    return false;
                 case 401:
                     System.out.println("Api-key format invalid");
                     return false;

@@ -1,15 +1,14 @@
 import binance.*;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
 
 
 public class MainBot {
-    public static void main(String ...str) {
+    public static void main(String ...str) throws Exception  {
             Binance binance = new Binance();
-            binance.setAPIKey("...");
-            binance.setSecretKey("...");
-//            binance.getBalance("BTC");
+            binance.setAPIKey   ("");
+            binance.setSecretKey("");
+//            binance.orderIsOpen("ETHBTC", 123123);
+//            System.out.println(binance.getBalance("BTC"));
 //            System.out.println(binance.getAccount());
 //            Account acc = new Account();
 //            acc.addBalance("qwe", 12, 32.32);
