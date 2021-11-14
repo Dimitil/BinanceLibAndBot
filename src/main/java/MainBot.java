@@ -5,8 +5,8 @@ import binance.*;
 public class MainBot {
     public static void main(String ...str) throws Exception  {
             Binance binance = new Binance();
-            binance.setAPIKey   ("");
-            binance.setSecretKey("");
+            binance.setAPIKey   ("aJTE5fHkLqHpdnKgeNAbyFVHVxXa5B2HAAEBbN8ru9B5NVLBBHeKaaiZudkdL4WS");
+            binance.setSecretKey("gMFI7LQDhLSeEF1WMgCzDn959ZHiOWDPZtZy72L0pmGyuEOYyuoIKGzvPj22QXfC");
 //            binance.orderIsOpen("ETHBTC", 123123);
 //            System.out.println(binance.getBalance("BTC"));
 //            System.out.println(binance.getAccount());

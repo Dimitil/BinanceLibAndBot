@@ -212,7 +212,7 @@ public class Binance implements BinanceAPI {
             if (!processCodeHandler(response.statusCode())) {
                 return "";
             }
-            return processOrderResponce(response.body());
+            return processOrderResponse(response.body());
         } catch ( Exception e) {
             e.printStackTrace();
         }
@@ -269,7 +269,7 @@ public class Binance implements BinanceAPI {
         return false;
     }
 
-    private String processOrderResponce(String response) {
+    private String processOrderResponse(String response) {
         String orderId = "";
         try {
             JsonNode node = mapper.readValue(response, JsonNode.class);
