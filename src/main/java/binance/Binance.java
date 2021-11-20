@@ -30,15 +30,15 @@ public class Binance implements BinanceAPI {
     HashMap<String, Ticker> tickers = new HashMap<String, Ticker>();
 
 
-    public void setAPIKey(String apiKey) {
+    synchronized public void setAPIKey(String apiKey) {
         this.apiKey = apiKey;
     }
 
-    public void setSecretKey(String key) {
+    synchronized public void setSecretKey(String key) {
         encryptor = new Encryptor(key);
     }
 
-    public long getServerTime() {
+    synchronized public long getServerTime() {
         long res = 0;
         try {
              String response = sendGet(timeUrl);
@@ -50,7 +50,7 @@ public class Binance implements BinanceAPI {
         return res;
     }
 
-    public OrderBook getOrderBook(String pair, int count) {
+    synchronized public OrderBook getOrderBook(String pair, int count) {
         String resUri = depth + "?symbol=" + pair + "&" +"limit=" + count;
         OrderBook orderBook = new OrderBook();
         try {
@@ -76,7 +76,7 @@ public class Binance implements BinanceAPI {
         return orderBook;
     }
 
-    public double getLastPrice(String symbol) {
+    synchronized public double getLastPrice(String symbol) {
         double price = 0;
         String resUrl = tickerPrice + "?symbol=" + symbol;
         try {
@@ -89,7 +89,7 @@ public class Binance implements BinanceAPI {
         return price;
     }
 
-    private void updateTickerBook(String symbol) {
+    synchronized private void updateTickerBook(String symbol) {
         if(!tickers.containsKey(symbol)) {
             tickers.put(symbol, new Ticker());
         }
@@ -110,24 +110,24 @@ public class Binance implements BinanceAPI {
         }
     }
 
-    public double getBestBid(String symbol) {
+    synchronized public double getBestBid(String symbol) {
         updateTickerBook(symbol);
         return tickers.get(symbol).bestBid;
     }
 
-    public double getBestAsk(String symbol){
+    synchronized public double getBestAsk(String symbol){
         updateTickerBook(symbol);
         return tickers.get(symbol).bestAsk;
     }
 
-    public double getBalance(String symbol) {
+    synchronized public double getBalance(String symbol) {
         if(updateAccount()) {
             return acc.getBalance(symbol);
         }
         return UNDEF_BALANCE_VALUE;
     }
 
-    private boolean updateAccount() {
+    synchronized private boolean updateAccount() {
         if (apiKey == null || apiKey.isEmpty()) return false;
         if (encryptor == null) return false;
         long curTimeStamp = new Date().getTime();
@@ -144,21 +144,16 @@ public class Binance implements BinanceAPI {
         }
     }
 
-    public BinanceAccount getAccount() {  //DELETE THIS
-        updateAccount();
-        return acc;
-    }
-
-    public String postSellOrder(String symbol, double qty, double price) {
+    synchronized public String postSellOrder(String symbol, double qty, double price) {
         return sentPostOrder("SELL", symbol, qty, price);
     }
 
-    public String postBuyOrder(String symbol, double qty, double price) {
+    synchronized public String postBuyOrder(String symbol, double qty, double price) {
         return sentPostOrder("BUY", symbol, qty, price);
     }
 
     @Override
-    public boolean orderIsOpen(String symbol, long orderId) throws Exception {
+    synchronized public boolean orderIsOpen(String symbol, long orderId) throws Exception {
         if(symbol == null ||
                 symbol.isEmpty() ) throw new Exception("Invalid symbol or orderId");
         String body = "symbol=" + symbol + "&orderId=" + orderId
@@ -171,7 +166,7 @@ public class Binance implements BinanceAPI {
     }
 
     @Override
-    public boolean deleteOpenOrder(String symbol, long orderId) throws Exception{
+    synchronized public boolean deleteOpenOrder(String symbol, long orderId) throws Exception{
         if(symbol == null ||
                 symbol.isEmpty() ) throw new Exception("Invalid symbol or orderId");
         String body = "symbol=" + symbol + "&orderId=" + orderId + "&timestamp="
@@ -192,7 +187,7 @@ public class Binance implements BinanceAPI {
         return orderStatus.equals("CANCELED");
     }
 
-    private String sentPostOrder(String SELLorBUY, String symbol, double qty, double price) {
+    synchronized private String sentPostOrder(String SELLorBUY, String symbol, double qty, double price) {
         if (qty <= 0) return "";
         if( price <= 0) return "";
         if(!SELLorBUY.equals("SELL") && !SELLorBUY.equals("BUY")) return "";
@@ -219,7 +214,7 @@ public class Binance implements BinanceAPI {
         return "";
     }
 
-    private String sendGet(String url) throws IOException, InterruptedException {
+    synchronized private String sendGet(String url) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .timeout(Duration.ofSeconds(TIMEOUT_DURATION_SEC))
@@ -238,7 +233,7 @@ public class Binance implements BinanceAPI {
         return "";
     }
 
-    private String sendSignedGet(String endPoint, String body) throws IOException, InterruptedException {
+    synchronized private String sendSignedGet(String endPoint, String body) throws IOException, InterruptedException {
         String sign = encryptor.getSHA256(body);
         String resUrl = endPoint + "?" + body + "&signature=" + sign;
         return sendGet(resUrl);
@@ -269,11 +264,10 @@ public class Binance implements BinanceAPI {
         return false;
     }
 
-    private String processOrderResponse(String response) {
+    synchronized private String processOrderResponse(String response) {
         String orderId = "";
         try {
             JsonNode node = mapper.readValue(response, JsonNode.class);
-            System.out.println(response);
             if(node.isEmpty()) return "";
             orderId = node.get("orderId").asText();
         } catch (JsonProcessingException e) {
