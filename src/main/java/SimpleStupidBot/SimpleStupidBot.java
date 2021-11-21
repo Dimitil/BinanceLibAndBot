@@ -24,35 +24,30 @@ public class SimpleStupidBot implements Runnable {
     @Override
     public void run() {
         try {
-            balance = b.getBalance(curSymbol);
             double lastPrice = b.getLastPrice(pair);
-            double curPrice = 0;
-            qty = balance * balanceForBuy / curPrice;
-            b.postBuyOrder(pair, qty, lastPrice);
-            boolean wasBuy = true;
-            while (true) {
+            double curPrice = lastPrice;
+            boolean wasBuy = false;
+            do {
                 sleep(periodMills);
-                qty = b.getBalance(curSymbol);
+                balance = b.getBalance(curSymbol);
+                curPrice = b.getLastPrice(pair);
                 if (wasBuy && qty > 0) {
-                    curPrice = b.getLastPrice(pair);
                     if ((curPrice <= lastPrice * stopLimit) || (curPrice > lastPrice * profitLimit)) {
-                        b.postSellOrder(curSymbol, qty, curPrice);
+                        b.postSellOrder(pair, qty, curPrice);
                         wasBuy = false;
-                        lastPrice = curPrice;
                     }
                 } else {
-                    curPrice = b.getLastPrice(pair);
                     if (curPrice >= lastPrice * trendForBuy || curPrice < lastPrice * lessForBuyLimit) {
                         qty = balance * balanceForBuy / curPrice;
-                        b.postBuyOrder(pair, qty, lastPrice);
+                        b.postBuyOrder(pair, qty, curPrice);
                         wasBuy = true;
-                        lastPrice = curPrice;
                     }
                 }
-            }
+                lastPrice = curPrice;
+            } while (true);
         } catch ( InterruptedException e) {
             e.printStackTrace();
+            System.exit(1);
         }
-
     }
 }

@@ -17,7 +17,7 @@ import java.util.Objects;
 import static java.lang.Thread.sleep;
 
 public class Binance implements BinanceAPI {
-    public final long DELTA_MILLS_SEC = 5000;
+    public final long DELTA_MILLS_SEC = 3500;
     public final int TIMEOUT_DURATION_SEC = 10;
     final private HttpClient client = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_2)
@@ -30,11 +30,11 @@ public class Binance implements BinanceAPI {
     HashMap<String, Ticker> tickers = new HashMap<String, Ticker>();
 
 
-    synchronized public void setAPIKey(String apiKey) {
+    public void setAPIKey(String apiKey) {
         this.apiKey = apiKey;
     }
 
-    synchronized public void setSecretKey(String key) {
+    public void setSecretKey(String key) {
         encryptor = new Encryptor(key);
     }
 
@@ -46,6 +46,7 @@ public class Binance implements BinanceAPI {
              res = rootNode.get("serverTime").asLong();
         } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
+                System.exit(1);
         }
         return res;
     }
@@ -72,6 +73,7 @@ public class Binance implements BinanceAPI {
             }
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
+            System.exit(1);
         }
         return orderBook;
     }
@@ -85,6 +87,7 @@ public class Binance implements BinanceAPI {
             price = rootNode.get("price").asDouble();
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
+            System.exit(1);
         }
         return price;
     }
@@ -95,7 +98,7 @@ public class Binance implements BinanceAPI {
         }
         Ticker t = tickers.get(symbol);
         long tickerUpdateTime = t.tickerUpdateTime;
-        if(tickerUpdateTime + 5000 > new Date().getTime()) return;
+        if(tickerUpdateTime + DELTA_MILLS_SEC > new Date().getTime()) return;
         String resUrl = tickerBook + "?symbol=" + symbol;
         try {
             System.out.println("i do update");
@@ -107,6 +110,7 @@ public class Binance implements BinanceAPI {
             System.out.println(t.tickerUpdateTime);
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
+            System.exit(1);
         }
     }
 
@@ -128,20 +132,22 @@ public class Binance implements BinanceAPI {
     }
 
     synchronized private boolean updateAccount() {
-        if (apiKey == null || apiKey.isEmpty()) return false;
-        if (encryptor == null) return false;
+        if (apiKey == null || apiKey.isEmpty() || encryptor == null) {
+            System.out.println("apiKey or encruptor is NULL");
+            System.exit(1);
+        }
         long curTimeStamp = new Date().getTime();
         if(curTimeStamp < (acc.getUpdateTime() + DELTA_MILLS_SEC)) return true;
         String  body = "timestamp=" + curTimeStamp; // + "&recvWindow=45000";
         try {
             String response = sendSignedGet(accountInfo, body);
             acc = mapper.readValue(response, BinanceAccount.class);
-            return true;
         } catch (IOException |
                 InterruptedException e) {
             e.printStackTrace();
-            return false;
+            System.exit(1);
         }
+        return true;
     }
 
     synchronized public String postSellOrder(String symbol, double qty, double price) {
@@ -210,6 +216,7 @@ public class Binance implements BinanceAPI {
             return processOrderResponse(response.body());
         } catch ( Exception e) {
             e.printStackTrace();
+            System.exit(1);
         }
         return "";
     }
@@ -228,7 +235,7 @@ public class Binance implements BinanceAPI {
             }
         } catch ( Exception e) {
             e.printStackTrace();
-            System.out.println(response.body());
+            System.exit(1);
         }
         return "";
     }
@@ -256,6 +263,7 @@ public class Binance implements BinanceAPI {
         } catch (InterruptedException e) {
             e.printStackTrace();
             System.out.println("Problem with sleep()");
+            System.exit(1);
             return true;
         }
         System.out.println("Unknown response code");
@@ -272,6 +280,7 @@ public class Binance implements BinanceAPI {
             orderId = node.get("orderId").asText();
         } catch (JsonProcessingException e) {
             e.printStackTrace();
+            System.exit(1);
         }
         return orderId;
     }
@@ -297,10 +306,3 @@ public class Binance implements BinanceAPI {
         }
     }
 }
-//            'trades':           {'url': 'api/v1/trades', 'method': 'GET', 'private': False},
-//            'historicalTrades': {'url': 'api/v1/historicalTrades', 'method': 'GET', 'private': False},
-//            'aggTrades':        {'url': 'api/v1/aggTrades', 'method': 'GET', 'private': False},
-//            'kines':           {'url': 'api/v1/kines', 'method': 'GET', 'private': False},
-//            'ticker24hr':       {'url': 'api/v1/ticker/24hr', 'method': 'GET', 'private': False},
-
-
