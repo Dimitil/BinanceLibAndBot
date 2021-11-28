@@ -10,7 +10,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Objects;
 
@@ -98,7 +97,7 @@ public class Binance implements BinanceAPI {
         }
         Ticker t = tickers.get(symbol);
         long tickerUpdateTime = t.tickerUpdateTime;
-        if(tickerUpdateTime + DELTA_MILLS_SEC > new Date().getTime()) return;
+        if(tickerUpdateTime + DELTA_MILLS_SEC > System.CurrentTimeMillis()) return;
         String resUrl = tickerBook + "?symbol=" + symbol;
         try {
             System.out.println("i do update");
@@ -106,7 +105,7 @@ public class Binance implements BinanceAPI {
             JsonNode rootNode = mapper.readValue(response, JsonNode.class);
             t.bestBid = rootNode.get("bidPrice").asDouble();
             t.bestAsk = rootNode.get("askPrice").asDouble();
-            t.tickerUpdateTime = new Date().getTime();
+            t.tickerUpdateTime = System.currentTimeMillis();
             System.out.println(t.tickerUpdateTime);
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
@@ -136,7 +135,8 @@ public class Binance implements BinanceAPI {
             System.out.println("apiKey or encruptor is NULL");
             System.exit(1);
         }
-        long curTimeStamp = new Date().getTime();
+        long curTimeStamp = new 
+            ().getTime();
         if(curTimeStamp < (acc.getUpdateTime() + DELTA_MILLS_SEC)) return true;
         String  body = "timestamp=" + curTimeStamp; // + "&recvWindow=45000";
         try {
@@ -163,7 +163,7 @@ public class Binance implements BinanceAPI {
         if(symbol == null ||
                 symbol.isEmpty() ) throw new Exception("Invalid symbol or orderId");
         String body = "symbol=" + symbol + "&orderId=" + orderId
-                + "&timestamp=" + new Date().getTime();
+                + "&timestamp=" + System.CurrentTimeMillis();
         String response = sendSignedGet(orderUrl , body);
             JsonNode jsonRoot = mapper.readValue(response, JsonNode.class);
             if(jsonRoot.isEmpty()) throw new Exception("Order not found");
@@ -176,7 +176,7 @@ public class Binance implements BinanceAPI {
         if(symbol == null ||
                 symbol.isEmpty() ) throw new Exception("Invalid symbol or orderId");
         String body = "symbol=" + symbol + "&orderId=" + orderId + "&timestamp="
-                + new Date().getTime();
+                + System.CurrentTimeMillis();
         String sign = encryptor.getSHA256(body);
         body += "&signature=" + sign;
         HttpRequest request = HttpRequest.newBuilder()
@@ -199,7 +199,7 @@ public class Binance implements BinanceAPI {
         if(!SELLorBUY.equals("SELL") && !SELLorBUY.equals("BUY")) return "";
         String side = SELLorBUY;
         String body =  "symbol=" + symbol + "&side=" + side + "&type=LIMIT_MAKER" +
-                "&timestamp=" + new Date().getTime() + "&quantity=" + qty +
+                "&timestamp=" + System.currentTimeMillis() + "&quantity=" + qty +
                 "&price=" + price + "&newOrderRespType=ACK";
         String sign = encryptor.getSHA256(body);
         body += "&signature=" + sign;
